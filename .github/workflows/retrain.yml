@@ -1,0 +1,47 @@
+name: Retrain Skin Models
+
+on:
+  repository_dispatch:
+    types: [retrain_skin_type, retrain_skin_concern]
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  retrain:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Dependencies
+        run: pip install -r requirements.txt
+
+      - name: Authenticate GCS
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: 'projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Retrain Skin Type
+        if: github.event.action == 'retrain_skin_type'
+        env:
+          GCS_BUCKET_NAME: ${{ secrets.GCS_BUCKET_NAME }}
+          GCS_PROJECT_ID: ${{ secrets.GCS_PROJECT_ID }}
+          MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+        run: python -m mlops.retrain --model skin_type
+
+      - name: Retrain Skin Concern
+        if: github.event.action == 'retrain_skin_concern'
+        env:
+          GCS_BUCKET_NAME: ${{ secrets.GCS_BUCKET_NAME }}
+          GCS_PROJECT_ID: ${{ secrets.GCS_PROJECT_ID }}
+          MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+        run: python -m mlops.retrain --model skin_concern
